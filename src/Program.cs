@@ -8,7 +8,7 @@
 [Xpow2         ]    // after printing the screen
 [ |            ]    // it goes to a new line
 [2|            ]    
-[ |            ]
+[ |            ]    // screen[getLength(0), getlength(1)]
 [1|            ]
 [ |            ]
 [-+------------]
@@ -19,23 +19,21 @@ using System.Runtime.InteropServices;
 
 public class Program
 {
+    public delegate float floatFuncFloat(float x);
+
     public static void Main(string[] args)
     {
         const int width = 120, height = 30;
         SetWindowSize(width, height);
 
-        SampleFunctions.floatFuncFloatOutString[] sampleFunctions = {
-            SampleFunctions.Xpow2
+        (floatFuncFloat, string)[] sampleFunctions = {
+            (SampleFunctions.XPow2, "Xpow2")
         };
-
-        string functionName = "";
-        sampleFunctions[0](0, out functionName);
-        functionName = "XPow2";
 
         char[,] screen = new char[height - 1, width]; // screen[y,x] == screen[39, 160] // first row in console is taken by magic
 
-        WriteToScreenBuffer(screen, functionName, 0, 0);
-        DrawAxis(screen, 0, 9, 0, 9);
+        WriteToScreenBuffer(screen, "functionName", 0, 0);
+        DrawAxis(screen, screen.GetLength(1) / 2, screen.GetLength(0) / 2, 5, 5);
 
         Display(screen);
 
@@ -60,59 +58,75 @@ public class Program
             screen[y, x + i] = text[i];
     }
 
-    static void DrawAxis(char[,] screen, float xStart, float xEnd, float yStart, float yEnd)
+    static void DrawAxis(char[,] screen, int originX, int originY, float xEnd, float yEnd)
     {
-        int xAxisRow = screen.GetLength(0) - 3;
-        int yAxisCol = 2;
-
-        xAxisRow = screen.GetLength(0) / 2; // test
-        yAxisCol = screen.GetLength(1) / 2; // test
-
         for (int y = 1; y < screen.GetLength(0) - 1; y++) // first, last row kept empty. first row for function name
-            screen[y, yAxisCol] = '|';
+            screen[y, originX] = '|';
 
         for (int x = 1; x < screen.GetLength(1) - 1; x++) // firat, last col kept empty
-            screen[xAxisRow, x] = '-';
+            screen[originY, x] = '-';
 
-        screen[xAxisRow, yAxisCol] = '+';
-        AddIndicator(screen, xStart, xEnd, yStart, yEnd, xAxisRow, yAxisCol, 5);
+        screen[originY, originX] = '+';
+        AddIndicator(screen, xEnd, yEnd, originY, originX, 5);
 
 
         static void AddIndicator(
             char[,] screen,
-            float xStart, float xEnd,
-            float yStart, float yEnd,
-            int xAxisRow, int yAxisCol,
+            float xEnd, float yEnd, // first Quad, other Quads are calculated from this
+            int originY, int originX,
             int numOfIndocator = 5)
         {
-            int indicatorPosY = (int)Math.Round(screen.GetLength(0) / (float)numOfIndocator, MidpointRounding.AwayFromZero);
-            int indicatorPosX = (int)Math.Round(screen.GetLength(1) / (float)numOfIndocator, MidpointRounding.AwayFromZero);
+            int distBetnIndicatorY = screen.GetLength(0) / numOfIndocator;
+            int distBetnIndicatorX = screen.GetLength(0) / numOfIndocator;
+            distBetnIndicatorX *= 2;
+            int yIndicatorCol = originX - 1; // opposite meaning, screen[y, x], screen[y, yIndocatorCol].
+            int xIndicatorRow = originY + 1; // yIndicatorCol is a X value. it is fixed so y can vary
 
-            int xIndicatorRow = xAxisRow + 1;
-            int yIndicatorCol = yAxisCol - 1;
-
-            // add xStart, xEnd, yStart, yEnd
-            screen[1, yIndicatorCol] = ToChar((int)yEnd);
-            screen[xIndicatorRow - 2, yIndicatorCol] = ToChar((int)yStart);
-            screen[xIndicatorRow, screen.GetLength(1) - 2] = ToChar((int)xEnd); // last row kept empty
-            screen[xIndicatorRow, 3] = ToChar((int)xStart);
-
-            for (int y = 1; y < screen.GetLength(0); y++)
-                if (y % indicatorPosY == 0)
-                    screen[y, yIndicatorCol] = ToChar((int)ValueOfIndicator(screen.GetLength(0), screen.GetLength(0) - y, yStart, yEnd));
-
-            for (int x = 1; x < screen.GetLength(1); x++)
-                if (x % indicatorPosX == 0)
-                    screen[xIndicatorRow, x] = ToChar((int)ValueOfIndicator(screen.GetLength(1), x, xStart, xEnd));
+            screen[xIndicatorRow, originX + 1] = '0';                           // near origin x
+            screen[originY - 1, yIndicatorCol] = '0';                           // near origin y
+            screen[xIndicatorRow, screen.GetLength(1) - 2] = ToChar((int)ValueOfIndicator(screen.GetLength(1), screen.GetLength(1) - originX, xEnd)); // x +
+            screen[xIndicatorRow, 2] = ToChar((int)ValueOfIndicator(screen.GetLength(1), originX + 1, xEnd));                                         // x -
+            screen[1, yIndicatorCol] = ToChar((int)ValueOfIndicator(screen.GetLength(0), originY + 1, yEnd));                                         // y +
+            screen[screen.GetLength(0) - 2, yIndicatorCol] = ToChar((int)ValueOfIndicator(screen.GetLength(0), screen.GetLength(0) - originY, yEnd)); // y -
+            screen[screen.GetLength(0) - 2, yIndicatorCol - 1] = '-';
+            screen[xIndicatorRow, 1] = '-';
 
 
-            static float ValueOfIndicator(int totalLength, int currentLength, float valueStart, float valueEnd)
+            for (int y = 1; y < originY; y++)
+                if (y % distBetnIndicatorY == 0)
+                    screen[originY - y, yIndicatorCol] = ToChar((int)ValueOfIndicator(screen.GetLength(0), y, yEnd));
+
+            for (int x = 1; x < screen.GetLength(1) - originX; x++)
+                if (x % distBetnIndicatorX == 0)
+                    screen[xIndicatorRow, originX + x] = ToChar((int)ValueOfIndicator(screen.GetLength(1), x, xEnd));
+
+            for (int x = 1; x < originX; x++)
+                if (x % distBetnIndicatorX == 0)
+                {
+                    screen[xIndicatorRow, originX - x] = ToChar((int)ValueOfIndicator(screen.GetLength(1), x, xEnd));
+                    screen[xIndicatorRow, originX - x - 1] = '-';
+                }
+            for (int y = 1; y < screen.GetLength(0) - originY; y++)
+                if (y % distBetnIndicatorY == 0)
+                {
+                    screen[originY + y, yIndicatorCol] = ToChar((int)ValueOfIndicator(screen.GetLength(0), y, yEnd));
+                    screen[originY + y, yIndicatorCol - 1] = '-';
+                }
+
+
+            static float ValueOfIndicator(int totalLength, int currentLength, float valueEnd)
             {
+
                 float ratio = currentLength / (float)totalLength;
-                return valueStart + (valueEnd - valueStart) * ratio;
+                return 2 * valueEnd * ratio; // twice cause origin to one end and also to another end
             }
         }
     }
+
+    // static void WriteFunctionToBuffer(char[,] screen, )
+    // {
+
+    // }
 
     static void Display(char[,] screen)
     {
