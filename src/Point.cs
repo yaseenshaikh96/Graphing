@@ -1,7 +1,7 @@
-public struct Point
+public struct Point<T>
 {
-    public int x, y;
-    public Point(int x, int y)
+    public T x, y;
+    public Point(T x, T y)
     {
         this.x = x;
         this.y = y;
