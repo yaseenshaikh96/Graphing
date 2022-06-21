@@ -23,6 +23,28 @@ public class Program
     public static string? msg;
     public const int GRAPH_PADDING = 2;
     public const int AXIS_PADDING = 3;
+    private const char horiChar = '-';
+    private const char vertiChar = '|';
+    private const char plusChar = '+';
+    private const char funcChar = '*';
+
+    private const ConsoleColor yAxisColor = ConsoleColor.DarkRed;
+    private const ConsoleColor xAxisColor = ConsoleColor.DarkGreen;
+    private const ConsoleColor originColor = ConsoleColor.DarkYellow;
+    private const ConsoleColor borderColor = ConsoleColor.Blue;
+    private const ConsoleColor funcColor = ConsoleColor.Magenta;
+
+    private static ColorChar xAxisColorCh = new ColorChar(horiChar, xAxisColor);
+    private static ColorChar xIndicatorColorCh = new ColorChar(plusChar, xAxisColor);
+    private static ColorChar yAxisColorCh = new ColorChar(vertiChar, yAxisColor);
+    private static ColorChar yIndicatorColorCh = new ColorChar(plusChar, yAxisColor);
+    private static ColorChar originColorCh = new ColorChar(plusChar, originColor);
+    private static ColorChar borderHoriColorCh = new ColorChar(horiChar, borderColor);
+    private static ColorChar borderVertiColorCh = new ColorChar(vertiChar, borderColor);
+    private static ColorChar borderCornerColorCh = new ColorChar(plusChar, borderColor);
+    private static ColorChar funcColorCh = new ColorChar(funcChar, funcColor);
+
+
 
     public static void Main(string[] args)
     {
@@ -30,27 +52,40 @@ public class Program
         SetWindowSize(width, height);
 
         (floatFuncFloat, string)[] sampleFunctions = {
-            (SampleFunctions.XPow2, "Xpow2")
+            (SampleFunctions.XPow2, "Xpow2"),
+            (SampleFunctions.XPow3, "Xpow3"),
+            (SampleFunctions.sin, "Sin")
         };
+        (floatFuncFloat, string) currentFunc = sampleFunctions[2];
 
-        char[,] screen = new char[height - 1, width]; // screen[y,x] == screen[39, 160] // first row in console is taken by magic
+        ColorChar[,] screen = new ColorChar[height - 1, width]; // screen[y,x] == screen[39, 160] // first row in console is taken by magic
+        Instantiate(screen);
 
-        Point<int> origin = new Point<int>(screen.GetLength(1) / 2, screen.GetLength(0) / 2);
-        Point<float> minValue = new Point<float>(-5, -9);
-        Point<float> maxValue = new Point<float>(5, 9);
+        Point<float> minValue = new Point<float>(2, -1.5f);
+        Point<float> maxValue = new Point<float>(8, 1.5f);
         Point<int> indicatorDensity = new Point<int>(8, 3);
 
-        char[,] axis = MakeAxis(screen, minValue, maxValue, indicatorDensity);
-        char[,] graphBorder = MakeBorder(screen);
+        ColorChar[,] axis = MakeAxis(screen, minValue, maxValue, indicatorDensity);
+        ColorChar[,] graphBorder = MakeBorder(screen);
+        ColorChar[,] funcBuffer = MakeFunctionCurve(axis, currentFunc.Item1, minValue, maxValue);
 
-        WriteToBuffer(screen, graphBorder, new Point<int>(0, 0));
-        WriteToBuffer(screen, axis, new Point<int>(GRAPH_PADDING, GRAPH_PADDING));
-        WriteToBuffer(screen, "functionName", new Point<int>(0, 0));
 
-        Display(screen);
+        while (true)
+        {
+            WriteToBuffer(screen, currentFunc.Item2, new Point<int>(0, 0));
+            WriteToBuffer(screen, funcBuffer, new Point<int>(GRAPH_PADDING, GRAPH_PADDING));
+            WriteToBuffer(screen, axis, new Point<int>(GRAPH_PADDING, GRAPH_PADDING));
+            WriteToBuffer(screen, graphBorder, new Point<int>(0, 0));
+            Display(screen);
+            System.Console.Write(msg);
 
-        System.Console.Write(msg);
-        System.Console.Read();
+            string? input = System.Console.ReadLine();
+            // change min,maxValue, change func, change color
+            // minValue -2 2
+            // func 0
+            // func new x*x myPow
+            // color -xAxis red -yAxis green -func blue -border green
+        }
     }
 
     static void SetWindowSize(int x, int y)
@@ -64,10 +99,11 @@ public class Program
         System.Console.SetWindowPosition(0, 0);
     }
 
-    static char[,] MakeAxis(char[,] screen, Point<float> minValue, Point<float> maxValue, Point<int> indicatorDensity)
+    static ColorChar[,] MakeAxis(ColorChar[,] screen, Point<float> minValue, Point<float> maxValue, Point<int> indicatorDensity)
     {
         Point<int> maxScreenPosPad = new Point<int>(screen.GetLength(1) - GRAPH_PADDING, screen.GetLength(0) - GRAPH_PADDING);
-        char[,] axis = new char[maxScreenPosPad.y, maxScreenPosPad.x];
+        ColorChar[,] axis = new ColorChar[maxScreenPosPad.y, maxScreenPosPad.x];
+        Instantiate(axis);
         Point<int> origin;
         Point<float> originVal;
         {
@@ -102,13 +138,14 @@ public class Program
 
 
         {
+            // axis
             Point<int> indicatorRowCol = new Point<int>(origin.x - 1, origin.y + 1);
             for (int y = GRAPH_PADDING - 1; y < maxScreenPosPad.y - GRAPH_PADDING; y++)
-                axis[y, origin.x] = '|';
+                axis[y, origin.x] = yAxisColorCh;
             for (int x = GRAPH_PADDING - 1; x < maxScreenPosPad.x - GRAPH_PADDING; x++)
-                axis[origin.y, x] = '-';
-            axis[origin.y, origin.x] = '+';
+                axis[origin.y, x] = xAxisColorCh;
 
+            // indicators
             for (int x = 1; x < maxScreenPosPad.x; x++)
             {
                 if (x % indicatorDensity.x != 0) continue;
@@ -116,7 +153,7 @@ public class Program
                 float xVal = ScrPosToValue(maxValue.x, minValue.x, maxScreenPosPad.x, xPos);
                 string xValstr = ToString(xVal);
                 WriteToBuffer(axis, xValstr, new Point<int>(xPos - 2, indicatorRowCol.y));
-                axis[indicatorRowCol.y - 1, xPos] = '+';
+                axis[indicatorRowCol.y - 1, xPos] = xIndicatorColorCh;
             }
 
             for (int y = 1; y < maxScreenPosPad.y; y++)
@@ -127,8 +164,9 @@ public class Program
                 yPos = maxScreenPosPad.y - yPos;
                 string yValStr = ToString(yVal);
                 WriteToBuffer(axis, yValStr, new Point<int>(indicatorRowCol.x - 3, yPos));
-                axis[yPos, indicatorRowCol.x + 1] = '+';
+                axis[yPos, indicatorRowCol.x + 1] = yIndicatorColorCh;
             }
+            axis[origin.y, origin.x] = originColorCh;
         }
 
         msg = "origin: " + origin.x + ", " + origin.y + "; originval: " + originVal.x + ", " + originVal.y;
@@ -136,55 +174,86 @@ public class Program
         return axis;
     }
 
-    static char[,] MakeBorder(char[,] screen)
+    static ColorChar[,] MakeBorder(ColorChar[,] screen)
     {
         Point<int> maxScreenPos = new Point<int>(screen.GetLength(1) - 1, screen.GetLength(0));
-        char[,] border = new char[maxScreenPos.y, maxScreenPos.x];
+        ColorChar[,] border = new ColorChar[maxScreenPos.y, maxScreenPos.x];
+        Instantiate(border);
         for (int x = GRAPH_PADDING; x < maxScreenPos.x - GRAPH_PADDING; x++)
         {
-            border[GRAPH_PADDING, x] = '-';
-            border[maxScreenPos.y - GRAPH_PADDING, x] = '-';
+            border[GRAPH_PADDING, x] = borderHoriColorCh;
+            border[maxScreenPos.y - GRAPH_PADDING, x] = borderHoriColorCh;
         }
         for (int y = GRAPH_PADDING; y < maxScreenPos.y - GRAPH_PADDING; y++)
         {
-            border[y, GRAPH_PADDING] = '|';
-            border[y, maxScreenPos.x - GRAPH_PADDING] = '|';
+            border[y, GRAPH_PADDING] = borderVertiColorCh;
+            border[y, maxScreenPos.x - GRAPH_PADDING] = borderVertiColorCh;
         }
-        border[GRAPH_PADDING, GRAPH_PADDING] = '+';
-        border[maxScreenPos.y - GRAPH_PADDING, GRAPH_PADDING] = '+';
-        border[GRAPH_PADDING, maxScreenPos.x - GRAPH_PADDING] = '+';
-        border[maxScreenPos.y - GRAPH_PADDING, maxScreenPos.x - GRAPH_PADDING] = '+';
+        border[GRAPH_PADDING, GRAPH_PADDING] = borderCornerColorCh;
+        border[maxScreenPos.y - GRAPH_PADDING, GRAPH_PADDING] = borderCornerColorCh;
+        border[GRAPH_PADDING, maxScreenPos.x - GRAPH_PADDING] = borderCornerColorCh;
+        border[maxScreenPos.y - GRAPH_PADDING, maxScreenPos.x - GRAPH_PADDING] = borderCornerColorCh;
         return border;
     }
 
-
-    static void WriteToBuffer(char[,] buffer, string text, Point<int> point)
+    static ColorChar[,] MakeFunctionCurve(ColorChar[,] axis, floatFuncFloat Func, Point<float> minValue, Point<float> maxValue)
     {
-        for (int i = 0; i < text.Length; i++)
-            buffer[point.y, point.x + i] = text[i];
+        Point<int> maxAxisPos = new Point<int>(axis.GetLength(1) - GRAPH_PADDING, axis.GetLength(0) - GRAPH_PADDING);
+        ColorChar[,] funcBuffer = new ColorChar[maxAxisPos.y, maxAxisPos.x];
+        Instantiate(funcBuffer);
+
+        for (int x = 1; x < maxAxisPos.x - 1; x++)
+        {
+            float xVal = ScrPosToValue(maxValue.x, minValue.x, maxAxisPos.x, x);
+            float yVal = Func(xVal);
+            if (yVal >= maxValue.y || yVal <= minValue.y) continue;
+            int yPosAbs = ValueToScrPos(maxValue.y, minValue.y, yVal, maxAxisPos.y);
+            int yPos = maxAxisPos.y - yPosAbs;
+            funcBuffer[yPos, x] = funcColorCh;
+        }
+        return funcBuffer;
     }
-    static void WriteToBuffer(char[,] buffer, char[,] value, Point<int> point)
+
+    static void WriteToBuffer(ColorChar[,] buffer, string text, Point<int> point, ConsoleColor consoleColor = ConsoleColor.White)
+    {
+        if (point.y > buffer.GetLength(0)) return;
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (point.x + i > buffer.GetLength(1)) return;
+            buffer[point.y, point.x + i].ch = text[i];
+            buffer[point.y, point.x + i].consoleColor = consoleColor;
+        }
+    }
+    static void WriteToBuffer(ColorChar[,] buffer, ColorChar[,] value, Point<int> point)
     {
         for (int x = 0; x < value.GetLength(1); x++)
             for (int y = 0; y < value.GetLength(0); y++)
-                if (!(value[y, x] == '\0'))
-                    buffer[y + point.y, x + point.x] = value[y, x];
+            {
+                if ((value[y, x].ch == '\0')) continue;
+                buffer[y + point.y, x + point.x] = value[y, x];
+            }
     }
 
-    static void Display(char[,] screen)
+    static void Display(ColorChar[,] screen)
     {
+        System.Console.Clear();
         for (int y = 0; y < screen.GetLength(0); y++)
         {
-            string line = "";
             for (int x = 0; x < screen.GetLength(1); x++)
             {
-                line += screen[y, x];
+                System.Console.ForegroundColor = screen[y, x].consoleColor;
+                System.Console.Write(screen[y, x].ch);
             }
-            System.Console.Write(line);
         }
+        System.Console.ResetColor();
     }
 
-    static char ToChar(int value) => (char)(value + '0');
+    static void Instantiate(ColorChar[,] buffer)
+    {
+        for (int x = 0; x < buffer.GetLength(1); x++)
+            for (int y = 0; y < buffer.GetLength(0); y++)
+                buffer[y, x] = new ColorChar();
+    }
 
     static string ToString(float value)
     {
@@ -200,10 +269,6 @@ public class Program
     } // three most significant digit
 
 
-    static float Map(int x, int in_min, int in_max, int out_min, int out_max)
-    {
-        return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-    }
     static int ValueToScrPos(float maxValue, float minValue, float currentValue, int maxScreenPos)
     {
         return System.Convert.ToInt32(Remap(minValue, maxValue, 0, maxScreenPos, currentValue));
@@ -221,117 +286,3 @@ public class Program
         return Lerp(oMin, oMax, t);
     }
 }
-
-// static float MYScreenPosToValue(int maxScreenPos, int currentScrenPos, float minValue, float maxValue)
-// {
-//     float ratio = currentScrenPos / (float)maxScreenPos;
-//     float valueDiff = Math.Abs(maxValue - minValue);
-//     float absValue = valueDiff * ratio;
-//     return absValue + minValue;
-// }
-//
-// static int ValueToScreenPos(int currentValue, int maxValue, int screenMax)
-// {
-//     // current/max = 0-1;
-//     // 0--------------SM
-//     // float ratio = currentLength / (float)totalLength;
-//     // return 2 * valueEnd * ratio;
-//     int ratio = currentValue / maxValue;
-//     return ratio * screenMax;
-// }
-//
-// static int ScreenPos(int origin, int totalLength, int currentLength, float endValue)
-// {
-//     // current/total = 0-1
-//     // endValue * above = 0-endValue
-//     // 0---------------O--------TL
-//     // 0------------------------EV
-//     int totalLengthN = -(totalLength - (totalLength - origin));
-//     int totalLengthP = totalLength - origin;
-//     return (int)Map(currentLength, 0, totalLength, totalLengthN, totalLengthP);
-// }
-// static void DrawAxis(char[,] screen, Point origin, Point maxValue)
-// {
-
-//     for (int y = 1; y < screen.GetLength(0) - 1; y++) // first, last row kept empty. first row for function name
-//         screen[y, origin.x] = '|';
-
-//     for (int x = 1; x < screen.GetLength(1) - 1; x++) // firat, last col kept empty
-//         screen[origin.y, x] = '-';
-
-//     screen[origin.y, origin.x] = '+';
-//     AddIndicator(screen, origin, maxValue, 5);
-
-
-//     static void AddIndicator(
-//         char[,] screen,
-//         Point origin, Point maxValue,
-//         int numOfIndocator = 5)
-//     {
-//         int distBetnIndicatorY = screen.GetLength(0) / numOfIndocator;
-//         int distBetnIndicatorX = screen.GetLength(0) / numOfIndocator;
-//         distBetnIndicatorX *= 2;
-//         int yIndicatorCol = origin.x - 1; // opposite meaning, screen[y, x], screen[y, yIndocatorCol].
-//         int xIndicatorRow = origin.y + 1; // yIndicatorCol is a X value. it is fixed so y can vary
-
-//         screen[xIndicatorRow, origin.x + 1] = '0';                           // near origin x
-//         screen[origin.y - 1, yIndicatorCol] = '0';                           // near origin y
-//         screen[xIndicatorRow, screen.GetLength(1) - 2] = ToChar((int)ScreenPosToValue(screen.GetLength(1), screen.GetLength(1) - origin.x, maxValue.x)); // x +
-//         screen[xIndicatorRow, 2] = ToChar((int)ScreenPosToValue(screen.GetLength(1), origin.x + 1, maxValue.x));                                         // x -
-//         screen[1, yIndicatorCol] = ToChar((int)ScreenPosToValue(screen.GetLength(0), origin.y + 1, maxValue.y));                                         // y +
-//         screen[screen.GetLength(0) - 2, yIndicatorCol] = ToChar((int)ScreenPosToValue(screen.GetLength(0), screen.GetLength(0) - origin.y, maxValue.y)); // y -
-//         screen[screen.GetLength(0) - 2, yIndicatorCol - 1] = '-';
-//         screen[xIndicatorRow, 1] = '-';
-
-
-//         for (int y = 1; y < origin.y; y++)
-//             if (y % distBetnIndicatorY == 0)
-//                 screen[origin.y - y, yIndicatorCol] = ToChar((int)ScreenPosToValue(screen.GetLength(0), y, maxValue.y));
-
-//         for (int x = 1; x < screen.GetLength(1) - origin.x; x++)
-//             if (x % distBetnIndicatorX == 0)
-//                 screen[xIndicatorRow, origin.x + x] = ToChar((int)ScreenPosToValue(screen.GetLength(1), x, maxValue.x));
-
-//         for (int x = 1; x < origin.x; x++)
-//             if (x % distBetnIndicatorX == 0)
-//             {
-//                 screen[xIndicatorRow, origin.x - x] = ToChar((int)ScreenPosToValue(screen.GetLength(1), x, maxValue.x));
-//                 screen[xIndicatorRow, origin.x - x - 1] = '-';
-//             }
-//         for (int y = 1; y < screen.GetLength(0) - origin.y; y++)
-//             if (y % distBetnIndicatorY == 0)
-//             {
-//                 screen[origin.y + y, yIndicatorCol] = ToChar((int)ScreenPosToValue(screen.GetLength(0), y, maxValue.y));
-//                 screen[origin.y + y, yIndicatorCol - 1] = '-';
-//             }
-
-
-//     }
-// }
-// static void WriteFunctionToBuffer(char[,] screen, floatFuncFloat func, Point origin, Point maxValue)
-// {
-//     // Point maxScreenPos = new Point(screen.GetLength(1), screen.GetLength(0));
-
-//     // for (int xPos = 0; xPos < screen.GetLength(1) / 2; xPos++)
-//     // {
-//     //     float xVal = ScreenPosToValue(maxScreenPos.x, xPos, maxValue.x);
-//     //     float yVal = func(xVal);
-//     //     int yPos = ValueToScrPos(maxValue.y, yVal, maxScreenPos.y);
-//     //     if (origin.y - yPos < maxScreenPos.y / 2)
-//     //         screen[origin.y - yPos, xPos + origin.x] = 'o';
-//     // }
-//     // for (int x = 0; x > -screen.GetLength(1) / 2; x--)
-//     // {
-
-//     // }
-
-//     // for (int x = -screen.GetLength(1) / 2; x < screen.GetLength(1) / 2; x++)
-//     // {
-//     //     int y = (int)func(screenPosToValue(screen.GetLength(1), x, xEnd));
-//     //     int xPos = ScreenPos(originX, screen.GetLength(1), x, xEnd);
-//     //     int yPos = screen.GetLength(0) - ScreenPos(originY, screen.GetLength(0), y, yEnd);
-
-//     //     if (yPos > screen.GetLength(0) - 3 / 2)
-//     //         screen[originY - y, x + screen.GetLength(1) / 2] = 'o';
-//     // }
-// }
