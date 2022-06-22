@@ -1,5 +1,5 @@
 public struct ColorChar
-{
+{ // make it const!
     public char ch;
     public System.ConsoleColor consoleColor;
 

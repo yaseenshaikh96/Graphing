@@ -116,6 +116,27 @@
 //     //         screen[originY - y, x + screen.GetLength(1) / 2] = 'o';
 //     // }
 // }
+// static ColorChar[,] MakeBorder(ColorChar[,] screen)
+// {
+//     Point<int> maxScreenPos = new Point<int>(screen.GetLength(1) - 1, screen.GetLength(0));
+//     ColorChar[,] border = new ColorChar[maxScreenPos.y, maxScreenPos.x];
+//     Instantiate(border);
+//     for (int x = GRAPH_PADDING; x < maxScreenPos.x - GRAPH_PADDING; x++)
+//     {
+//         border[GRAPH_PADDING, x] = borderHoriColorCh;
+//         border[maxScreenPos.y - GRAPH_PADDING, x] = borderHoriColorCh;
+//     }
+//     for (int y = GRAPH_PADDING; y < maxScreenPos.y - GRAPH_PADDING; y++)
+//     {
+//         border[y, GRAPH_PADDING] = borderVertiColorCh;
+//         border[y, maxScreenPos.x - GRAPH_PADDING] = borderVertiColorCh;
+//     }
+//     border[GRAPH_PADDING, GRAPH_PADDING] = borderCornerColorCh;
+//     border[maxScreenPos.y - GRAPH_PADDING, GRAPH_PADDING] = borderCornerColorCh;
+//     border[GRAPH_PADDING, maxScreenPos.x - GRAPH_PADDING] = borderCornerColorCh;
+//     border[maxScreenPos.y - GRAPH_PADDING, maxScreenPos.x - GRAPH_PADDING] = borderCornerColorCh;
+//     return border;
+// }
 /*
 
 */
