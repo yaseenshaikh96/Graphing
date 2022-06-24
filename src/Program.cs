@@ -21,6 +21,16 @@ public class Program
 {
     public delegate float floatFuncFloat(float x);
     public static string? msg;
+
+    // private static string continuePrompt = "press any key to continue...";
+    private static string prompt = "type 'help' to get started";
+    private static string defaultPrompt = "Command: ";
+    private static string nullInputPrompt = "null Input. ";
+    private static string firstInvalidPrompt = "first input invalid";
+    private static string secondInvalidPrompt = "second input invalid";
+    private static string invalidNumOfInput = "invalid number of arguments";
+    public static ConsoleColor promptColor = ConsoleColor.Green;
+
     public const int BORDER_PADDING = 2;
     public const int AXIS_PADDING = BORDER_PADDING + 2; // +2 => 1 space gap
     public const int NUM_PRECISION = 4;
@@ -45,7 +55,9 @@ public class Program
     private static ColorChar borderCornerColorCh = new ColorChar(plusChar, borderColor);
     private static ColorChar funcColorCh = new ColorChar(funcChar, funcColor);
 
-
+    private static Point<float> minValue = new Point<float>(2, -1.5f);
+    private static Point<float> maxValue = new Point<float>(8, 1.5f);
+    private static Point<int> indicatorDensity = new Point<int>(8, 3);
 
     public static void Main(string[] args)
     {
@@ -62,31 +74,41 @@ public class Program
         ColorChar[,] screen = new ColorChar[height - 1, width]; // screen[y,x] == screen[39, 160] // first row in console is taken by magic
         Instantiate(screen);
 
-        Point<float> minValue = new Point<float>(2, -1.5f);
-        Point<float> maxValue = new Point<float>(8, 1.5f);
-        Point<int> indicatorDensity = new Point<int>(8, 3);
 
-        ColorChar[,] axis = MakeAxis(screen, minValue, maxValue, indicatorDensity);
-        ColorChar[,] graphBorder = MakeBorder(screen);
-        ColorChar[,] funcBuffer = MakeFunctionCurve(axis, currentFunc.Item1, minValue, maxValue);
 
 
         while (true)
         {
+            ColorChar[,] axis = MakeAxis(screen);
+            ColorChar[,] graphBorder = MakeBorder(screen);
+            ColorChar[,] funcBuffer = MakeFunctionCurve(axis, currentFunc.Item1);
+
             WriteToBuffer(screen, currentFunc.Item2, new Point<int>(0, 0));
             WriteToBuffer(screen, funcBuffer, new Point<int>(AXIS_PADDING, AXIS_PADDING));
             WriteToBuffer(screen, axis, new Point<int>(AXIS_PADDING, AXIS_PADDING));
             WriteToBuffer(screen, graphBorder, new Point<int>(BORDER_PADDING, BORDER_PADDING));
             Display(screen);
-            System.Console.Write(msg);
+            Instantiate(screen);
 
+            PrintPrompt();
+            prompt = defaultPrompt;
             string? input = System.Console.ReadLine();
+            HandleCommand(input);
+
             // change min,maxValue, change func, change color
             // minValue -2 2
             // func 0
             // func new x*x myPow
             // color -xAxis red -yAxis green -func blue -border green
         }
+    }
+
+    public static void PrintPrompt()
+    {
+        System.Console.ForegroundColor = promptColor;
+        System.Console.Write(prompt);
+        System.Console.ResetColor();
+        System.Console.Write(", " + defaultPrompt);
     }
 
     static void SetWindowSize(int x, int y)
@@ -100,7 +122,7 @@ public class Program
         System.Console.SetWindowPosition(0, 0);
     }
 
-    static ColorChar[,] MakeAxis(ColorChar[,] screen, Point<float> minValue, Point<float> maxValue, Point<int> indicatorDensity)
+    static ColorChar[,] MakeAxis(ColorChar[,] screen)
     {
         Point<int> maxAxisPos = new Point<int>(screen.GetLength(1) - 2 * AXIS_PADDING, screen.GetLength(0) - 2 * AXIS_PADDING);
         ColorChar[,] axis = new ColorChar[maxAxisPos.y, maxAxisPos.x];
@@ -167,9 +189,6 @@ public class Program
             }
 
         }
-
-        msg = "origin: " + origin.x + ", " + origin.y + "; originval: " + originVal.x + ", " + originVal.y;
-
         return axis;
     }
 
@@ -200,7 +219,7 @@ public class Program
         return border;
     }
 
-    static ColorChar[,] MakeFunctionCurve(ColorChar[,] axis, floatFuncFloat Func, Point<float> minValue, Point<float> maxValue)
+    static ColorChar[,] MakeFunctionCurve(ColorChar[,] axis, floatFuncFloat Func)
     {
         Point<int> maxFuncPos = new Point<int>(axis.GetLength(1), axis.GetLength(0));
         ColorChar[,] funcBuffer = new ColorChar[maxFuncPos.y, maxFuncPos.x];
@@ -213,10 +232,118 @@ public class Program
             // if (yVal >= maxValue.y || yVal <= minValue.y) continue;
             int yPosAbs = ValueToScrPos(maxValue.y, minValue.y, yVal, maxFuncPos.y);
             int yPos = maxFuncPos.y - yPosAbs;
-            if (yPos > maxFuncPos.y - 1) continue;
+            if (yPos > maxFuncPos.y - 1 || yPos < 1) continue;
             funcBuffer[yPos, x] = funcColorCh;
         }
         return funcBuffer;
+    }
+
+    static void HandleCommand(string? input)
+    {
+        if (input == null)
+        {
+            prompt = nullInputPrompt;
+            promptColor = ConsoleColor.DarkRed;
+            return;
+        }
+        string[] args = input.Split(" ");
+
+        switch (args[0])
+        {
+            case "change":
+                Change(args);
+                break;
+            case "help":
+                Help(args);
+                break;
+            case "exit":
+                Exit();
+                break;
+            default:
+                prompt = firstInvalidPrompt;
+                promptColor = ConsoleColor.DarkRed;
+                break;
+        }
+    }
+
+    static void Help(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            prompt = "list of commands: change, exit, help";
+            promptColor = ConsoleColor.DarkGreen;
+            return;
+        }
+        if (args[1] == "change")
+        {
+            prompt = "change [scalex/scaley] num1 num2";
+            promptColor = ConsoleColor.DarkGreen;
+            return;
+        }
+        if (args[1] == "exit")
+        {
+            prompt = "exits the application with success";
+            promptColor = ConsoleColor.DarkGreen;
+            return;
+        }
+        if (args[1] == "help")
+        {
+            prompt = "???";
+            promptColor = ConsoleColor.DarkGreen;
+            return;
+        }
+    }
+
+    static void Change(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            prompt = invalidNumOfInput;
+            promptColor = ConsoleColor.DarkRed;
+            return;
+        }
+        bool success = false;
+        int[] nums = new int[2];
+        for (int i = 0; i < nums.Length; i++)
+        {
+            success = System.Int32.TryParse(args[2 + i], out nums[i]);
+            if (!success)
+            {
+                prompt = "failed parse: " + args[2 + i];
+                promptColor = ConsoleColor.DarkRed;
+                return;
+            }
+        }
+
+        if (args[1] == "scalex")
+        {
+            minValue = new Point<float>(nums[0], minValue.y);
+            maxValue = new Point<float>(nums[1], maxValue.y);
+            prompt = "Changed scale for X";
+            promptColor = ConsoleColor.DarkGreen;
+        }
+        else if (args[1] == "scaley")
+        {
+            minValue = new Point<float>(minValue.x, nums[0]);
+            maxValue = new Point<float>(maxValue.x, nums[1]);
+            prompt = "Changed scale for Y";
+            promptColor = ConsoleColor.DarkGreen;
+        }
+        else
+        {
+            prompt = secondInvalidPrompt;
+            promptColor = ConsoleColor.DarkRed;
+        }
+    }
+
+    public static void Exit()
+    {
+        System.Console.ForegroundColor = ConsoleColor.Green;
+        System.Console.Clear();
+        System.Console.Write("Thank You for using the application!\n");
+        System.Console.Write("press any key to exit");
+        System.Console.Read();
+        System.Environment.Exit(0);
     }
 
     static void WriteToBuffer(ColorChar[,] buffer, string text, Point<int> point, ConsoleColor consoleColor = ConsoleColor.White)
